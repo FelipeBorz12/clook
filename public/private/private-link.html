@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Generador privado de links</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#0b0f14; --card:#121822; --muted:#8fa3b0; --accent:#39c0ff; --txt:#e7f0f7; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--txt);font:16px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji","Segoe UI Emoji"}
+    .wrap{max-width:720px;margin:40px auto;padding:24px}
+    .card{background:linear-gradient(180deg, #162131, #0f1520 120%);border:1px solid #1e2a3a;border-radius:16px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+    h1{margin:0 0 8px;font-size:22px;letter-spacing:.2px}
+    p.hint{margin:0 0 20px;color:var(--muted)}
+    label{display:block;margin:14px 0 6px;font-weight:600}
+    input,button{font:inherit}
+    input[type=text], input[type=url]{width:100%;padding:12px 14px;border-radius:12px;background:#0c121c;border:1px solid #1c2736;color:var(--txt);outline:0}
+    input[type=text]:focus, input[type=url]:focus{border-color:#28425d;box-shadow:0 0 0 3px rgba(57,192,255,.15)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .actions{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid #224660;background:#112233;color:#dff2ff;cursor:pointer}
+    .btn.primary{background:linear-gradient(180deg, #2274ff, #1555c8);border-color:#1a55d5}
+    .btn.ghost{background:transparent}
+    .note{margin-top:8px;color:#92a7b7;font-size:13px}
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:24px}
+    .modal{background:#0f1520;border:1px solid #1d293a;border-radius:16px;max-width:520px;width:100%;padding:18px 18px}
+    .modal h2{margin:0 0 10px;font-size:20px}
+    .modal .out{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;background:#0b111b;border:1px dashed #24405b;border-radius:12px;padding:12px;word-break:break-all}
+    .modal .actions{justify-content:flex-end}
+    .sneak{display:none}
+    .warn{color:#ffd479}
+    .muted{color:#9fb1bf}
+    .sep{height:1px;background:#1a2533;margin:14px 0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Generador privado de links</h1>
+      <p class="hint">Crea un enlace que pase por <code>/searchEngine/&lt;slug&gt;</code> y guárdalo en la tabla <code>links</code>.</p>
+
+      <form id="genForm" autocomplete="off">
+        <label for="slug">Nombre del modelo (slug)</label>
+        <input type="text" id="slug" name="slug" placeholder="ej: meelondon" required pattern="[a-zA-Z0-9_-]{3,}" />
+
+        <div class="row">
+          <div>
+            <label for="displayName">Nombre a mostrar</label>
+            <input type="text" id="displayName" name="display_name" placeholder="ej: Mee London" required />
+          </div>
+          <div>
+            <label for="field">Campo (fijo)</label>
+            <input type="text" id="field" value="instagram" disabled />
+          </div>
+        </div>
+
+        <label for="targetUrl">Link de destino (http/https)</label>
+        <input type="url" id="targetUrl" name="target_url" placeholder="https://instagram.com/meelondon" required />
+
+        <div class="actions">
+          <button type="submit" class="btn primary">Guardar y generar</button>
+          <button type="reset" class="btn ghost">Limpiar</button>
+        </div>
+        <p class="note">El enlace público se guardará como <code>[tu-dominio]/searchEngine/&lt;slug&gt;</code> en <code>public_url</code>.</p>
+
+        <!-- Acceso privado simple (opcional) -->
+        <div class="sep"></div>
+        <p class="muted">Privado: puedes abrir esta página detrás de autenticación del servidor o VPN. Este archivo no expone credenciales.</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="modal">
+      <h2 id="mTitle">Link generado</h2>
+      <p class="muted">Copia y comparte este enlace (pasa por la app):</p>
+      <div class="out" id="modalLinkText">dominio.com/searchEngine/slug</div>
+      <div class="actions">
+        <button class="btn" id="copyBtn">Copiar</button>
+        <a class="btn primary" id="openBtn" href="#" target="_blank" rel="noopener">Abrir</a>
+        <button class="btn ghost" id="closeBtn">Cerrar</button>
+      </div>
+      <p class="note"><span class="warn">Nota:</span> se guardó también en <code>links.public_url</code>.</p>
+    </div>
+  </div>
+
+  <script src="./private-link.js" type="module"></script>
+</body>
+</html>

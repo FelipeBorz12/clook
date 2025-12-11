@@ -18,8 +18,9 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "ejs": "^3.1.10",
-    "express": "^5.1.0",
-    "morgan": "^1.10.1"
+    "express": "^5.2.1",
+    "morgan": "^1.10.1",
+    "supabase": "^2.65.8"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
