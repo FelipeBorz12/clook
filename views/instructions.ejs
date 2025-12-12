@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acceso Privado</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta http-equiv="Cache-Control" content="no-store" />
   <style>
     body {
       margin: 0;
@@ -29,11 +31,7 @@
     p  { font-size: 1.3em; margin: 10px 0; opacity: 0.95; }
     img { max-width: 90%; margin-top: 25px; border-radius: 15px; box-shadow: 0 0 20px rgba(255, 0, 112, 0.6); animation: softPulse 3s infinite ease-in-out; }
     @keyframes softPulse { 0% { transform: scale(1); opacity:.95 } 50% { transform: scale(1.03); opacity:1 } 100% { transform: scale(1); opacity:.95 } }
-    .btn {
-      display:inline-block; padding:12px 16px; border-radius:12px; background:#fff; color:#1a0014;
-      text-decoration:none; font-weight:600; border:1px solid rgba(255,255,255,.3); margin-top:14px;
-    }
-    .hidden { display:none; }
+    .muted { opacity: .85; font-size: .95em; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -42,40 +40,44 @@
     <h2>Follow these instructions to enter</h2>
     <p>1. Tap the three dots in the upper right corner.</p>
     <p>2. Select <b>"Open in browser"</b>.</p>
-    <a id="continueBtn" class="btn" href="#">Continuar</a>
     <img src="/clook/gif/gitonly.png" alt="Instructions">
+    <p class="muted">If you already opened this page in your default browser, you’ll be redirected automatically.</p>
   </div>
 
   <script>
-    // obtiene el :id si estamos en /instructions/:id
+    // Extrae :id desde /instructions/:id
     function currentIdFromPath() {
       const m = (location.pathname || '').match(/^\/instructions\/([^\/?#]+)/i);
       return m ? decodeURIComponent(m[1]) : null;
     }
-    // detector simple de móvil
-    function isMobile() {
+
+    // Heurística de in-app
+    function isInstagramInApp() {
       const ua = (navigator.userAgent || '').toLowerCase();
-      return /android|iphone|ipad|ipod|mobile/i.test(ua);
+      return ua.includes('instagram') || ua.includes('fb_iab') || ua.includes('fban/instagram') || ua.includes('version/0');
+    }
+    function isTikTokInApp() {
+      const ua = (navigator.userAgent || '').toLowerCase();
+      return ua.includes('tiktok') || ua.includes('musically');
+    }
+    function isInApp() {
+      return isInstagramInApp() || isTikTokInApp();
     }
 
     (function init(){
       const id = currentIdFromPath();
       const loadingPath = id ? `/loading/${id}` : '/loading';
 
-      const go = () => {
+      // Si NO estamos en navegador embebido (in-app) → saltar directo a loading
+      if (!isInApp()) {
         try { location.replace(loadingPath); } catch { location.href = loadingPath; }
-      };
-
-      // Desktop: NO mostrar instrucciones → ir directo a loading
-      if (!isMobile()) return go();
-
-      // Móvil: mostrar instrucciones y dejar botón para continuar a loading
-      const btn = document.getElementById('continueBtn');
-      if (btn) {
-        btn.href = loadingPath;
-        btn.addEventListener('click', function(ev){ ev.preventDefault(); go(); });
       }
+      // Si sí es in-app (IG/TikTok), nos quedamos mostrando solo las instrucciones (sin botón).
     })();
   </script>
+
+  <noscript>
+    <p style="margin-top:16px">Enable JavaScript to continue.</p>
+  </noscript>
 </body>
 </html>

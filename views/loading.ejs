@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cargando...</title>
 
+  <meta name="robots" content="noindex,nofollow" />
+  <meta http-equiv="Cache-Control" content="no-store" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
@@ -59,11 +61,9 @@
     (function go(){
       const id = currentIdFromPath();
       const secretPath = id ? (`/secret/${id}`) : '/secret';
-
-      // Se deja en manos del servidor validar bots y redirigir al OnlyFans
       setTimeout(() => {
         try { location.replace(secretPath); } catch { location.href = secretPath; }
-      }, 700);
+      }, 800); // breve delay para UX y permitir cookies/challenge si aplica
     })();
   </script>
 </body>
