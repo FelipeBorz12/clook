@@ -1,153 +1,70 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cargando...</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cargando...</title>
 
-    <!-- Fuente Poppins -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
-
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: 'Poppins', sans-serif;
-            background: radial-gradient(circle at top, #ff2a8a, #3a002a, #150013);
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 40px;
-            overflow: hidden;
-        }
-
-        .wrapper {
-            width: 100%;
-            max-width: 1200px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 40px;
-        }
-
-        .loader-container {
-            flex: 0 0 280px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .loader {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 0 35px rgba(255, 42, 138, 0.8);
-            background-color: #ffffff; /* 🔹 Centro blanco */
-        }
-
-        /* Anillo que gira alrededor */
-        .loader::before {
-            content: "";
-            position: absolute;
-            inset: -4px; /* un poco más grande que el círculo blanco */
-            border-radius: 50%;
-            border: 6px solid rgba(255, 255, 255, 0.18);
-            border-top-color: #ff2a8a;
-            border-right-color: #ff2a8a;
-            animation: spin 1.2s linear infinite;
-        }
-
-        /* Logo centrado, SIN recortarlo en círculo */
-        .loader-logo {
-            position: relative;
-            width: 65%;
-            height: 65%;
-            object-fit: contain;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .text-container {
-            flex: 1;
-            text-align: right;
-        }
-
-        h1 {
-            font-size: 2.8rem;
-            margin: 0 0 12px;
-            letter-spacing: 1px;
-        }
-
-        p {
-            font-size: 1.15rem;
-            opacity: 0.9;
-            margin: 0;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 24px;
-            }
-
-            .wrapper {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .text-container {
-                text-align: center;
-            }
-
-            h1 {
-                font-size: 2.1rem;
-            }
-
-            p {
-                font-size: 1rem;
-            }
-        }
-    </style>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: 'Poppins', sans-serif;
+      background: radial-gradient(circle at top, #ff2a8a, #3a002a, #150013);
+      color: #fff; min-height: 100vh; display: flex; justify-content: center; align-items: center;
+      padding: 40px; overflow: hidden;
+    }
+    .wrapper { width: 100%; max-width: 1200px; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
+    .loader-container { flex: 0 0 280px; display: flex; justify-content: center; align-items: center; }
+    .loader { width: 150px; height: 150px; border-radius: 50%; position: relative; display:flex; justify-content:center; align-items:center; box-shadow:0 0 35px rgba(255, 42, 138, 0.8); background:#fff; }
+    .loader::before { content:""; position:absolute; inset:-4px; border-radius:50%; border:6px solid rgba(255,255,255,.18); border-top-color:#ff2a8a; border-right-color:#ff2a8a; animation:spin 1.2s linear infinite; }
+    .loader-logo { position:relative; width:65%; height:65%; object-fit:contain; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .text-container { flex:1; text-align:right; }
+    h1 { font-size: 2.8rem; margin:0 0 12px; letter-spacing:1px; }
+    p  { font-size:1.15rem; opacity:.9; margin:0; }
+    @media (max-width:768px){
+      body{ padding:24px }
+      .wrapper{ flex-direction:column; text-align:center }
+      .text-container{ text-align:center }
+      h1{ font-size:2.1rem } p{ font-size:1rem }
+    }
+  </style>
 </head>
-
 <body>
-    <!-- Honeypot, no se toca -->
-    <form method="POST" action="/instructions" style="display:none">
-        <input type="text" name="honeypot" value="">
-        <button type="submit">Submit</button>
-    </form>
+  <!-- Honeypot (no tocar) -->
+  <form method="POST" action="/instructions" style="display:none">
+    <input type="text" name="honeypot" value="">
+    <button type="submit">Submit</button>
+  </form>
 
-    <div class="wrapper">
-        <!-- Círculo con logo -->
-        <div class="loader-container">
-            <div class="loader">
-                <!-- Ajusta la ruta si es necesario -->
-                <img src="https://fptwztporosusnwcwvny.supabase.co/storage/v1/object/public/public-fotos/logoOnly.png" alt="Logo" class="loader-logo" />
-            </div>
-        </div>
-
-        <!-- Texto a la derecha -->
-        <div class="text-container">
-            <h1>Verifying access...</h1>
-            <p>One moment… this is worth it.</p>
-
-        </div>
+  <div class="wrapper">
+    <div class="loader-container">
+      <div class="loader">
+        <img src="https://fptwztporosusnwcwvny.supabase.co/storage/v1/object/public/public-fotos/logoOnly.png" alt="Logo" class="loader-logo" />
+      </div>
     </div>
+    <div class="text-container">
+      <h1>Verifying access...</h1>
+      <p>One moment… this is worth it.</p>
+    </div>
+  </div>
 
-    <script>
-        setTimeout(() => {
-            window.location.href = '/secret/<%= id %>';
-        }, 3000);
-    </script>
+  <script>
+    // lee /loading/:id si aplica
+    function currentIdFromPath() {
+      const m = (location.pathname || '').match(/^\/loading\/([^\/?#]+)/i);
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+    (function go(){
+      const id = currentIdFromPath();
+      const secretPath = id ? (`/secret/${id}`) : '/secret';
+
+      // Se deja en manos del servidor validar bots y redirigir al OnlyFans
+      setTimeout(() => {
+        try { location.replace(secretPath); } catch { location.href = secretPath; }
+      }, 700);
+    })();
+  </script>
 </body>
 </html>

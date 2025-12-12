@@ -3,230 +3,74 @@
 <head>
   <meta charset="UTF-8" />
   <title>Model - Profile</title>
-
-  <!-- Fuente Poppins -->
-  <link
-    href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
-    rel="stylesheet"
-  />
-
-<style>
-  /* 🔹 Hace que padding y border no rompan el ancho */
-  *, *::before, *::after {
-    box-sizing: border-box;
-  }
-
-  html, body {
-    margin: 0;
-    padding: 0;
-    min-height: 100%;
-  }
-
-  body {
-    font-family: 'Poppins', sans-serif;
-    background: linear-gradient(145deg, #1a0012, #430027, #ff0077);
-    background-size: 200% 200%;
-    animation: ambient 12s ease infinite;
-    color: #fff;
-  }
-
-  @keyframes ambient {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  .page-bg {
-    width: 100%;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-  }
-
-  .profile-card {
-    background: rgba(255, 255, 255, 0.07);
-    padding: 30px;
-    border-radius: 20px;
-    text-align: center;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 0 25px rgba(255, 0, 120, 0.4);
-    width: 100%;
-    max-width: 560px;
-    animation: softFloat 4s ease-in-out infinite;
-  }
-
-  @keyframes softFloat {
-    0%   { transform: translateY(0); }
-    50%  { transform: translateY(-6px); }
-    100% { transform: translateY(0); }
-  }
-
-  .profile-image-wrapper {
-    margin-bottom: 20px;
-  }
-
-  .profile-image {
-    width: 100%;
-    border-radius: 18px;
-    box-shadow: 0 0 25px rgba(255, 0, 120, 0.45);
-  }
-
-  .profile-name {
-    font-size: 2.2em;
-    font-weight: 700;
-    margin-bottom: 5px;
-    letter-spacing: 1px;
-  }
-
-  .profile-subtitle {
-    opacity: 0.8;
-    margin-bottom: 30px;
-    font-size: 1.05em;
-  }
-
-  .buttons-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    align-items: center;
-  }
-
-  .service-btn {
-    background: #fefcff;
-    padding: 18px 22px;
-    border-radius: 18px;
-    color: #070606;
-    text-decoration: none;
-    font-weight: 600;
-    letter-spacing: 1px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 85%;
-    text-align: center;
-    border: 1px solid rgba(255, 0, 120, 0.8);
-    box-shadow: 0 0 18px rgba(119, 7, 72, 0.9);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  }
-
-  .service-btn:hover {
-    transform: scale(1.03) translateY(-1px);
-    box-shadow: 0 0 26px rgba(255, 0, 120, 0.8);
-    background: #eb2571;
-    color: #fff;
-  }
-
-  .service-title {
-    font-size: 1.5em;
-    text-transform: uppercase;
-  }
-
-  .service-subtitle {
-    font-size: 1.05em;
-    opacity: 0.9;
-  }
-
-  /* 📱 MÓVIL / TABLET: card a pantalla completa */
-  @media (max-width: 768px) {
-    .page-bg {
-      padding: 0;
-      min-height: 100vh;
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; min-height: 100%; }
+    body { font-family: 'Poppins', sans-serif; background: linear-gradient(145deg, #1a0012, #430027, #ff0077); background-size: 200% 200%; animation: ambient 12s ease infinite; color: #fff; }
+    @keyframes ambient { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+    .page-bg { width:100%; min-height:100vh; display:flex; justify-content:center; align-items:center; padding:20px; }
+    .profile-card { background: rgba(255,255,255,.07); padding:30px; border-radius:20px; text-align:center; backdrop-filter: blur(12px);
+      box-shadow:0 0 25px rgba(255,0,120,.4); width:100%; max-width:560px; animation: softFloat 4s ease-in-out infinite; }
+    @keyframes softFloat { 0%{transform:translateY(0)} 50%{transform:translateY(-6px)} 100%{transform:translateY(0)} }
+    .profile-image-wrapper { margin-bottom:20px; }
+    .profile-image { width:100%; border-radius:18px; box-shadow:0 0 25px rgba(255,0,120,.45); }
+    .profile-name { font-size:2.2em; font-weight:700; margin-bottom:5px; letter-spacing:1px; }
+    .profile-subtitle { opacity:.8; margin-bottom:30px; font-size:1.05em; }
+    .buttons-wrapper { display:flex; flex-direction:column; gap:16px; align-items:center; }
+    .service-btn { background:#fefcff; padding:18px 22px; border-radius:18px; color:#070606; text-decoration:none; font-weight:600; letter-spacing:1px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; width:85%; text-align:center; border:1px solid rgba(255,0,120,.8);
+      box-shadow:0 0 18px rgba(119,7,72,.9); transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+    .service-btn:hover { transform: scale(1.03) translateY(-1px); box-shadow:0 0 26px rgba(255,0,120,.8); background:#eb2571; color:#fff; }
+    .service-title { font-size:1.5em; text-transform:uppercase; }
+    .service-subtitle { font-size:1.05em; opacity:.9; }
+    @media (max-width:768px) {
+      .page-bg { padding:0; min-height:100vh; }
+      .profile-card { width:100%; max-width:100%; min-height:100vh; border-radius:0; box-shadow:none; padding:24px 16px 32px; display:flex; flex-direction:column; justify-content:center; }
+      .service-btn { width:90%; }
     }
-
-    .profile-card {
-      width: 100%;
-      max-width: 100%;
-      min-height: 100vh;      /* ocupa toda la altura del dispositivo */
-      border-radius: 0;       /* pantalla completa */
-      box-shadow: none;
-      padding: 24px 16px 32px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center; /* centra el contenido verticalmente */
+    @media (max-width:360px) {
+      .profile-name { font-size:1.6em; }
+      .profile-subtitle { font-size:.95em; margin-bottom:20px; }
+      .service-title { font-size:1.1em; }
+      .service-subtitle { font-size:.9em; }
+      .service-btn { padding:14px 16px; width:94%; }
     }
-
-    .service-btn {
-      width: 90%;             /* casi todo el ancho sin pegarse al borde */
+    @media (max-width:260px) {
+      .profile-card { padding:16px 10px 24px; }
+      .profile-name { font-size:1.4em; }
+      .service-btn { padding:12px 10px; width:100%; }
     }
-  }
-
-  /* 📱 Pantallas muy pequeñas (< 360px aprox, como 214px que dices) */
-  @media (max-width: 360px) {
-    .profile-name {
-      font-size: 1.6em;
-    }
-
-    .profile-subtitle {
-      font-size: 0.95em;
-      margin-bottom: 20px;
-    }
-
-    .service-title {
-      font-size: 1.1em;
-    }
-
-    .service-subtitle {
-      font-size: 0.9em;
-    }
-
-    .service-btn {
-      padding: 14px 16px;
-      width: 94%;
-    }
-  }
-
-  /* Extra pequeño (por si pruebas < 260px en devtools) */
-  @media (max-width: 260px) {
-    .profile-card {
-      padding: 16px 10px 24px;
-    }
-
-    .profile-name {
-      font-size: 1.4em;
-    }
-
-    .service-btn {
-      padding: 12px 10px;
-      width: 100%;
-    }
-  }
-</style>
-
-
+  </style>
 </head>
-
 <body>
+  <% /* En modo landing (searchEngine), el botón secreto va a /loading → /secret → OnlyFans */ %>
+  <% const loadingPath = (typeof id !== 'undefined' && id) ? ('/loading/' + id) : '/loading'; %>
+
   <div class="page-bg">
     <main class="profile-card">
-     <div class="profile-image-wrapper">
+      <div class="profile-image-wrapper">
         <img src="<%= model.photo %>" alt="foto_modelo" class="profile-image" />
       </div>
 
-        <section class="profile-info">
+      <section class="profile-info">
         <h1 class="profile-name"><%= model.name %></h1>
         <p class="profile-subtitle"><%= model.subtitle %></p>
       </section>
 
-     <section class="buttons-wrapper">
+      <section class="buttons-wrapper">
         <% Object.entries(model).forEach(([key, value]) => { %>
-          <% if (['tiktok','instagram','onlyfans'].includes(key)) { %>
-            <a href="<%= key === 'onlyfans' ? '/loading/' + id : value %>" class="service-btn">
+          <% if (['tiktok','instagram','onlyfans'].includes(key) && value) { %>
+            <a href="<%= key === 'onlyfans' ? loadingPath : value %>" class="service-btn" rel="nofollow noopener">
               <span class="service-title">
                 <%= key === 'onlyfans' ? 'MY SECRET PAGE' : key.toUpperCase() %>
               </span>
-
               <% if (key === 'onlyfans') { %>
-                <!-- Solo para el botón secreto -->
                 <span class="service-subtitle">😈😈 Exclusive content</span>
               <% } else if (key === 'tiktok') { %>
-                <!-- Texto diferente para TikTok -->
-                <span class="service-subtitle"> Fresh content</span>
+                <span class="service-subtitle">Fresh content</span>
               <% } else if (key === 'instagram') { %>
-                <!-- Texto diferente para Instagram -->
-                <span class="service-subtitle"> Latest posts</span>
+                <span class="service-subtitle">Latest posts</span>
               <% } %>
             </a>
           <% } %>
