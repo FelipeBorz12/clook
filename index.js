@@ -17,6 +17,7 @@ app.use(morgan('dev'));
 app.use('/clook/gif', express.static(path.join(process.cwd(), 'gif')));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 app.use(express.static(path.join(process.cwd(), 'public'))); 
 
@@ -25,11 +26,12 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 // -------------------------------------------
 app.set('trust proxy', true);
 
-const REMOVE_WWW = String(process.env.REMOVE_WWW || 'true') === 'true';
-const CACHE_TTL_MS = Number(process.env.CACHE_TTL_MS || 300000);
+const REMOVE_WWW       = String(process.env.REMOVE_WWW || 'true') === 'true';
+const CACHE_TTL_MS     = Number(process.env.CACHE_TTL_MS || 300000);
 const DEFAULT_LINK_FIELD = (process.env.DEFAULT_LINK_FIELD || 'instagram').toLowerCase();
-const SLUG_FORWARD_MODE = (process.env.SLUG_FORWARD_MODE || 'exact').toLowerCase(); // exact | append_path
-const BASE_PUBLIC_URL = (process.env.BASE_PUBLIC_URL || 'http://127.0.0.1:3000').replace(/\/+$/,'');
+const SLUG_FORWARD_MODE  = (process.env.SLUG_FORWARD_MODE || 'exact').toLowerCase(); // exact | append_path
+const BASE_PUBLIC_URL  = (process.env.BASE_PUBLIC_URL || 'http://127.0.0.1:3000').replace(/\/+$/,'');
+const FORCE_HTTPS      = String(process.env.FORCE_HTTPS ?? 'true') === 'true';
 
 const ALLOWED_FIELDS = new Set(['instagram', 'onlyfans', 'tiktok']);
 
@@ -40,6 +42,11 @@ function normalizeHost(rawHostHeader = '') {
   return host;
 }
 function getRealIp(req) {
+  // Si usas Cloudflare/NGINX/Render, intenta leer estos headers primero
+  const cf = req.headers['cf-connecting-ip'];
+  if (cf) return String(cf).trim();
+  const xri = req.headers['x-real-ip'];
+  if (xri) return String(xri).trim();
   const fwd = req.headers['x-forwarded-for'];
   if (fwd) return fwd.split(',')[0].trim();
   return req.ip;
@@ -52,10 +59,22 @@ function isSafeHttpUrl(u) {
     return false;
   }
 }
-// el link público apunta a /searchEngine/<slug>
 function computePublicUrl(slug) {
   return `${BASE_PUBLIC_URL}/searchEngine/${slug}`;
 }
+function sha1(x){ return crypto.createHash('sha1').update(String(x)).digest('hex'); }
+
+// HTTPS forzado detrás de proxy
+app.use((req, res, next) => {
+  if (FORCE_HTTPS && process.env.NODE_ENV === 'production') {
+    const xfProto = req.headers['x-forwarded-proto'];
+    if (xfProto && xfProto !== 'https') {
+      const host = req.headers.host;
+      return res.redirect(301, `https://${host}${req.originalUrl}`);
+    }
+  }
+  next();
+});
 
 // -------------------------------------------
 // Test DB
@@ -71,7 +90,7 @@ try {
 // -------------------------------------------
 // Caché y helpers
 // -------------------------------------------
-const linksCache = new Map(); // key: link_id, value: { row, exp }
+const linksCache = new Map(); // key: link_id, value: { val, exp }
 function cacheGet(map, key) {
   const hit = map.get(key);
   if (!hit) return null;
@@ -89,7 +108,7 @@ async function getLinks() {
     return {};
   }
   const links = {};
-  data.forEach(row => {
+  (data || []).forEach(row => {
     links[row.id] = {
       onlyfans: row.onlyfans,
       instagram: row.instagram,
@@ -160,28 +179,92 @@ function buildForwardUrl(base, req, mode) {
 }
 
 // -------------------------------------------
-// Bot / UA / Rate limit (tu lógica original)
+// Rate limit por identidad + IP + global (ROBUSTO)
 // -------------------------------------------
-const requestTimes = {};
-const MAX_REQUESTS = 50;
-const TIME_WINDOW = 60000;
+// ENV afinables:
+// RL_IDENTITY_MAX_PER_MIN (por persona): default 80
+// RL_IP_MAX_PER_MIN       (por IP):       default 300
+// RL_GLOBAL_MAX_PER_MIN   (global):       default 2000
+// RL_BURST_WINDOW_MS      (ventana ráfaga): default 2000
+// RL_BURST_MAX            (hits/identidad en ventana): default 12
+const RL_ID_MAX  = Number(process.env.RL_IDENTITY_MAX_PER_MIN || 80);
+const RL_IP_MAX  = Number(process.env.RL_IP_MAX_PER_MIN || 300);
+const RL_G_MAX   = Number(process.env.RL_GLOBAL_MAX_PER_MIN || 2000);
+const RL_WIN_MS  = 60_000;
 
-function rateLimiter(req, res, next) {
-  const ip = getRealIp(req);
-  const sessionId = req.sessionId || 'anon';
-  const key = `${ip}_${sessionId}`;
-  const now = Date.now();
+const BURST_WIN_MS = Number(process.env.RL_BURST_WINDOW_MS || 2000);
+const BURST_MAX    = Number(process.env.RL_BURST_MAX || 12);
 
-  if (!requestTimes[key]) requestTimes[key] = [];
-  requestTimes[key] = requestTimes[key].filter(t => now - t < TIME_WINDOW);
+const hitsIdentity = new Map(); // key identity -> array timestamps
+const hitsIp       = new Map(); // key ip       -> array timestamps
+const hitsGlobal   = [];        // array timestamps
 
-  if (requestTimes[key].length >= MAX_REQUESTS) {
-    return res.status(429).send('Too Many Requests');
-  }
-  requestTimes[key].push(now);
-  next();
+function prune(arr, now, windowMs){
+  let i=0; const min = now - windowMs;
+  while(i < arr.length && arr[i] < min) i++;
+  if (i > 0) arr.splice(0, i);
+}
+function pushHit(map, key, now){
+  let arr = map.get(key);
+  if (!arr) { arr = []; map.set(key, arr); }
+  arr.push(now);
+  return arr;
+}
+function identityKey(req) {
+  const ip  = getRealIp(req) || 'ip?';
+  const ua  = req.headers['user-agent'] || '';
+  const sid = req.cookies.sessionId || 'anon';
+  const uah = sha1(ua).slice(0,16);
+  return `${ip}#${sid}#${uah}`;
 }
 
+// Sesión (parte de la identidad)
+app.use((req, res, next) => {
+  if (!req.cookies.sessionId) {
+    const sessionId = crypto.randomBytes(16).toString('hex');
+    res.cookie('sessionId', sessionId, { httpOnly: true, sameSite: 'Lax' });
+    req.sessionId = sessionId;
+  } else {
+    req.sessionId = req.cookies.sessionId;
+  }
+  next();
+});
+
+function rateGuard(req, res, next) {
+  const now = Date.now();
+  const ip  = getRealIp(req);
+  const id  = identityKey(req);
+
+  // Global
+  hitsGlobal.push(now);
+  prune(hitsGlobal, now, RL_WIN_MS);
+  if (hitsGlobal.length > RL_G_MAX) return res.status(503).send('Busy');
+
+  // IP
+  const ipArr = pushHit(hitsIp, ip, now);
+  prune(ipArr, now, RL_WIN_MS);
+  if (ipArr.length > RL_IP_MAX) return res.status(429).send('Too Many Requests (IP)');
+
+  // Identidad
+  const idArr = pushHit(hitsIdentity, id, now);
+  prune(idArr, now, RL_WIN_MS);
+  if (idArr.length > RL_ID_MAX) return res.status(429).send('Too Many Requests (Identity)');
+
+  // Ráfaga (burst)
+  const burst = idArr.filter(t => now - t <= BURST_WIN_MS).length;
+  if (burst > BURST_MAX) {
+    // Pequeña penalización de latencia contra scrapers
+    const delay = Math.floor(50 + Math.random()*150);
+    setTimeout(() => next(), delay);
+    return;
+  }
+  next();
+}
+app.use(rateGuard);
+
+// -------------------------------------------
+// Bot / UA heuristics + Challenge JS (mejorado)
+// -------------------------------------------
 function isSearchEngine(userAgent) {
   const bots = [
     'googlebot','bingbot','slurp','duckduckbot','baiduspider',
@@ -209,10 +292,11 @@ function isSuspiciousUserAgent(userAgent) {
   const suspicious = [
     'python-requests','axios/','curl/','wget','node-fetch',
     'httpclient','java/','go-http','scrapy','spider','bot',
-    'crawler','libwww','unknown','apache-httpclient'
+    'crawler','libwww','unknown','apache-httpclient','okhttp','httpx'
   ];
   return suspicious.some(p => ua.includes(p));
 }
+
 const userActions = {};
 function trackUserAction(ip, action) {
   if (!userActions[ip]) userActions[ip] = [];
@@ -221,7 +305,7 @@ function trackUserAction(ip, action) {
 function isSuspiciousBehavior(ip) {
   if (!userActions[ip]) return false;
   const actions = userActions[ip];
-  const recent = actions.filter(a => Date.now() - a.timestamp < 10000);
+  const recent = actions.filter(a => Date.now() - a.timestamp < 10_000);
   return recent.length > 5;
 }
 function isBot(req) {
@@ -235,21 +319,91 @@ function isBot(req) {
   );
 }
 
-// -------------------------------------------
-// Middlewares de sesión, rate-limit, captcha, honeypot
-// -------------------------------------------
-app.use((req, res, next) => {
-  if (!req.cookies.sessionId) {
-    const sessionId = crypto.randomBytes(16).toString('hex');
-    res.cookie('sessionId', sessionId, { httpOnly: true });
-    req.sessionId = sessionId;
-  } else {
-    req.sessionId = req.cookies.sessionId;
+// Reto JS para subir confianza de navegador real
+const KNOWN_SEARCH_BOTS = [
+  'googlebot','bingbot','slurp','duckduckbot','baiduspider','yandexbot','sogou','exabot',
+  'facebot','facebookexternalhit','applebot','twitterbot','linkedinbot','embedly',
+  'quora link preview','pinterest','vkshare','w3c_validator','semrushbot','ahrefsbot',
+  'mj12bot','ccbot','dotbot','qwantify','redditbot','discordbot','telegrambot','petalbot'
+];
+const GENERIC_BOT_TOKENS = [
+  'crawler','spider','bot','fetch','httpclient','apache-httpclient','libwww','python-requests',
+  'axios/','curl/','wget','go-http','java/','scrapy','node-fetch','perl','php','httpx','okhttp'
+];
+const HEADLESS_HINTS = ['headlesschrome','puppeteer','playwright','phantomjs','electron','nwjs'];
+const JS_CHALLENGE_COOKIE = 'js_challenge';
+const JS_CHALLENGE_TTL_S  = 10 * 60;
+
+function uaMatches(list, ua) { const s = String(ua || '').toLowerCase(); return list.some(t => s.includes(t)); }
+function headerAnomalies(req) {
+  let score = 0;
+  const h = req.headers;
+  const ua     = String(h['user-agent'] || '').toLowerCase();
+  const accept = String(h['accept'] || '');
+  const al     = String(h['accept-language'] || '');
+  const enc    = String(h['accept-encoding'] || '');
+  const secua  = String(h['sec-ch-ua'] || '');
+  if (!ua || ua.length < 10) score += 2;
+  if (!accept.includes('text/html') && !accept.includes('*/*')) score += 1;
+  if (!al) score += 0.5;
+  if (!enc) score += 0.5;
+  if (!secua) score += 0.5;
+  if (HEADLESS_HINTS.some(t => ua.includes(t))) score += 2;
+  return score;
+}
+function recentBurstPenalty(req) {
+  const now = Date.now();
+  const arr = hitsIdentity.get(identityKey(req)) || [];
+  const last = arr.filter(t => now - t <= BURST_WIN_MS).length;
+  return last > BURST_MAX ? 3 : last >= Math.ceil(BURST_MAX*0.75) ? 1 : 0;
+}
+function botScore(req) {
+  const ua = String(req.headers['user-agent'] || '').toLowerCase();
+  let score = 0;
+  if (uaMatches(KNOWN_SEARCH_BOTS, ua))  score += 6;
+  if (uaMatches(GENERIC_BOT_TOKENS, ua)) score += 3;
+  score += headerAnomalies(req);
+  score += recentBurstPenalty(req);
+  return score;
+}
+
+const BOT_BLOCK_THRESHOLD     = Number(process.env.BOT_BLOCK_THRESHOLD ?? 10);
+const BOT_CHALLENGE_THRESHOLD = Number(process.env.BOT_CHALLENGE_THRESHOLD ?? 7);
+const PATH_OK_FOR_BOTS = /^\/(clook|public|assets|favicon\.ico|robots\.txt|ping|admin|api|challenge|instructions|searchEngine|loading|secret)/i;
+
+app.get('/challenge', (req, res) => {
+  const back = req.query.back || '/';
+  res.type('html').send(`<!doctype html>
+<html><head><meta charset="utf-8"><title>Verificación</title></head>
+<body style="font-family:system-ui;background:#0b0f14;color:#e7f0f7">
+  <p>Verificando tu navegador…</p>
+  <script>
+    try {
+      document.cookie = "${JS_CHALLENGE_COOKIE}=1; path=/; max-age=${JS_CHALLENGE_TTL_S}; samesite=Lax";
+      location.replace(${JSON.stringify(back)});
+    } catch(e) { document.body.innerHTML = "<h1>Enable JavaScript</h1>"; }
+  </script>
+  <noscript><h1>Enable JavaScript</h1></noscript>
+</body></html>`);
+});
+
+function botShield(req, res, next) {
+  const score = botScore(req);
+  if (score >= BOT_BLOCK_THRESHOLD && !PATH_OK_FOR_BOTS.test(req.path)) {
+    return res.status(403).send('Forbidden');
+  }
+  const hasJS = Boolean(req.cookies[JS_CHALLENGE_COOKIE]);
+  if (score >= BOT_CHALLENGE_THRESHOLD && !hasJS && !PATH_OK_FOR_BOTS.test(req.path)) {
+    const back = encodeURIComponent(req.originalUrl || req.url || '/');
+    return res.redirect(302, `/challenge?back=${back}`);
   }
   next();
-});
-app.use(rateLimiter);
+}
+app.use(botShield);
 
+// -------------------------------------------
+// Middlewares captcha/honeypot (tuyos)
+// -------------------------------------------
 function captchaMiddleware(req, res, next) {
   const ip = getRealIp(req);
   if (isSuspiciousBehavior(ip)) return res.render('captcha');
@@ -260,7 +414,7 @@ app.use(captchaMiddleware);
 function honeypotMiddleware(req, res, next) {
   if (req.body && req.body.honeypot) {
     console.log('Honeypot triggered → bot');
-    return res.render('searchEngine', { id: 'bot', model: {} });
+    return res.status(204).end();
   }
   next();
 }
@@ -308,7 +462,6 @@ app.post('/admin/new', async (req, res) => {
       return res.status(400).send('URL destino inválida (http/https requerido)');
     }
 
-    // PUBLIC URL automático apuntando a /searchEngine/<slug>
     const publicUrl = computePublicUrl(slug);
 
     const insertObj = {
@@ -402,10 +555,7 @@ app.get('/:slug', async (req, res, next) => {
     if (RESERVED_PREFIXES.has(low)) return next();
     if (!looksLikeSlug(slug)) return next();
 
-    // Asegura que public_url está correcto (con /searchEngine/)
     await ensurePublicUrlPersisted(slug);
-
-    // Compatibilidad: manda al flujo de la app
     return res.redirect(302, `/searchEngine/${slug}`);
   } catch (e) {
     console.error('Error en slug router:', e?.message || e);
@@ -485,14 +635,47 @@ app.get('/secret/:id', async (req, res) => {
   trackUserAction(ip, 'visit_secret');
 
   const ua = req.headers['user-agent'] || '';
-  if (isBot(req) || isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
+
+  // Bot shield final (incluye reto JS si aplica)
+  const score  = botScore(req);
+  const hasJS  = Boolean(req.cookies['js_challenge']);
+  if (isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
+    // En IAB bloqueamos/mandamos a Instagram perfil
     return res.redirect('https://instagram.com/tu_perfil');
   }
+  if (score >= BOT_BLOCK_THRESHOLD) {
+    return res.status(403).send('Forbidden');
+  }
+  if (score >= BOT_CHALLENGE_THRESHOLD && !hasJS) {
+    const back = encodeURIComponent(req.originalUrl || req.url || '/');
+    return res.redirect(302, `/challenge?back=${back}`);
+  }
+
   return res.redirect(model.onlyfans);
 });
 
 // Health
 app.get('/ping', (req, res) => res.status(200).send('pong'));
+
+// Debug de límites (activar con DEBUG_RATE=1)
+if (String(process.env.DEBUG_RATE || '0') === '1') {
+  app.get('/debug/rate', (req, res) => {
+    const now = Date.now();
+    const ip  = getRealIp(req);
+    const id  = identityKey(req);
+    const idArr = (hitsIdentity.get(id) || []).filter(t => now - t <= RL_WIN_MS);
+    const ipArr = (hitsIp.get(ip) || []).filter(t => now - t <= RL_WIN_MS);
+    res.json({
+      ip,
+      identity: id,
+      lastMin: {
+        identityHits: idArr.length,
+        ipHits: ipArr.length,
+        globalHits: hitsGlobal.filter(t => now - t <= RL_WIN_MS).length
+      }
+    });
+  });
+}
 
 // -------------------------------------------
 app.listen(port, () => console.log(`Server running on port ${port}`));
